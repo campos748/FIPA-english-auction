@@ -25,8 +25,8 @@ public class AgenteVendedor extends Agent {
 
 		// Create and show the GUI 
 		myGui = new GUIVendedor(this);
-		myGui.showGui();
-
+                myGui.showGui();
+                
 		// Register the book-selling service in the yellow pages
 		DFAgentDescription dfd = new DFAgentDescription();
 		dfd.setName(getAID());
