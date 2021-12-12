@@ -9,19 +9,21 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
+import java.util.HashMap;
 
 import java.util.Hashtable;
 
 public class AgenteVendedor extends Agent {
 	// The catalogue of books for sale (maps the title of a book to its price)
-	private Hashtable catalogue;
+	private HashMap<String,Subasta> catalogue;
 	// The GUI by means of which the user can add books in the catalogue
-	private GUIVendedor	 myGui;
+	private GUIVendedor myGui;
 
 	// Put agent initializations here
+        @Override
 	protected void setup() {
 		// Create the catalogue
-		catalogue = new Hashtable();
+		catalogue = new HashMap();
 
 		// Create and show the GUI 
 		myGui = new GUIVendedor(this);
@@ -31,8 +33,8 @@ public class AgenteVendedor extends Agent {
 		DFAgentDescription dfd = new DFAgentDescription();
 		dfd.setName(getAID());
 		ServiceDescription sd = new ServiceDescription();
-		sd.setType("book-selling");
-		sd.setName("JADE-book-trading");
+		sd.setType("book-auction");
+		sd.setName("JADE-book-auction");
 		dfd.addServices(sd);
 		try {
 			DFService.register(this, dfd);
@@ -41,11 +43,11 @@ public class AgenteVendedor extends Agent {
 			fe.printStackTrace();
 		}
 
-		// Add the behaviour serving queries from buyer agents
+		// Agrega el comportamiento de las consultas de servicio del agente comprador 
 		addBehaviour(new OfferRequestsServer());
 
-		// Add the behaviour serving purchase orders from buyer agents
-		addBehaviour(new PurchaseOrdersServer());
+		// Añadir el comportamiento de servicio de las órdenes de compra de los agentes compradores
+		addBehaviour(new BidOrdersServer()); 
 	}
 
 	// Put agent clean-up operations here
@@ -63,16 +65,21 @@ public class AgenteVendedor extends Agent {
 		System.out.println("Seller-agent "+getAID().getName()+" terminating.");
 	}
 
-	public void updateCatalogue(final String title, final int price) {
+        
+        
+	public void anadirSubasta(String titulo, Subasta sb) {
 		addBehaviour(new OneShotBehaviour() {
+                        @Override
 			public void action() {
-				catalogue.put(title, new Integer(price));
-				System.out.println(title+" inserted into catalogue. Price = "+price);
+				catalogue.put(titulo, sb);
+				myGui.mostrarNotificacion("Nueva Subasta:\nLibro: "+sb.getTituloLibro()+" Precio Inicial  = "+sb.getPrecio()+"\n");
 			}
 		} );
 	}
 
+        // Comportamiento de las consultas de servicio del agente comprador 
 	private class OfferRequestsServer extends CyclicBehaviour {
+                @Override
 		public void action() {
 			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.CFP);
 			ACLMessage msg = myAgent.receive(mt);
@@ -80,8 +87,10 @@ public class AgenteVendedor extends Agent {
 				// CFP Message received. Process it
 				String title = msg.getContent();
 				ACLMessage reply = msg.createReply();
-
-				Integer price = (Integer) catalogue.get(title);
+                                
+                                // Obtención del precio actual del libro
+				Integer price = catalogue.get(title).getPrecio();
+                                
 				if (price != null) {
 					// The requested book is available for sale. Reply with the price
 					reply.setPerformative(ACLMessage.PROPOSE);
@@ -100,8 +109,11 @@ public class AgenteVendedor extends Agent {
 		}
 	}  // End of inner class OfferRequestsServer
 
-
-	private class PurchaseOrdersServer extends CyclicBehaviour {
+        // TODO: contabilizar el numer ode pujantes
+        
+        // Comportamiento de puja de uno de los clientes
+	private class BidOrdersServer extends CyclicBehaviour {
+                @Override
 		public void action() {
 			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL);
 			ACLMessage msg = myAgent.receive(mt);
@@ -110,10 +122,11 @@ public class AgenteVendedor extends Agent {
 				String title = msg.getContent();
 				ACLMessage reply = msg.createReply();
 
-				Integer price = (Integer) catalogue.remove(title);
+				Integer price = catalogue.remove(title).getPrecio();
 				if (price != null) {
 					reply.setPerformative(ACLMessage.INFORM);
-					System.out.println(title+" sold to agent "+msg.getSender().getName());
+					myGui.mostrarNotificacion(msg.getSender().getName()+" ha pujado por: "+title);
+                                        
 				}
 				else {
 					// The requested book has been sold to another buyer in the meanwhile .
@@ -123,7 +136,8 @@ public class AgenteVendedor extends Agent {
 				myAgent.send(reply);
 			}
 			else {
-				block();
+                            myGui.mostrarNotificacion("Hay "+" pujantes");
+                            block();
 			}
 		}
 	}  // End of inner class OfferRequestsServer
