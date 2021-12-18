@@ -5,6 +5,8 @@
  */
 package Vendedor;
 
+import jade.core.AID;
+
 /**
  *
  * @author martin
@@ -14,6 +16,7 @@ public class Subasta {
     private String tituloLibro;
     private int precio;
     private int incremento;
+    private AID ganador;
 
     public Subasta(String tituloLibro, int precioInicial, int incremento) {
         this.tituloLibro = tituloLibro;
@@ -33,8 +36,13 @@ public class Subasta {
         return incremento;
     }
 
-    
-    
+    public AID getGanador() {
+        return ganador;
+    }
+
+    public void setGanador(AID ganador) {
+        this.ganador = ganador;
+    }
     
     public void setPrecioInicial(int precioInicial) {
         this.precio = precioInicial;

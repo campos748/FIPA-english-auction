@@ -1,14 +1,17 @@
 package Vendedor;
 
+import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 import java.util.Hashtable;
@@ -18,47 +21,49 @@ public class AgenteVendedor extends Agent {
 	private HashMap<String,Subasta> catalogue;
 	// The GUI by means of which the user can add books in the catalogue
 	private GUIVendedor myGui;
-
+        AID[] agentesComprador;
+        
 	// Put agent initializations here
-        @Override
-	protected void setup() {
-		// Create the catalogue
-		catalogue = new HashMap();
+       @Override
+    protected void setup() {
+        // Create the catalogue
+        catalogue = new HashMap();
 
-		// Create and show the GUI 
-		myGui = new GUIVendedor(this);
-                myGui.showGui();
+        // Create and show the GUI 
+        myGui = new GUIVendedor(this);
+        myGui.showGui();
+        
+        // Comportamiento para ir añadiendo nuevos posibles compradores
+        addBehaviour(new TickerBehaviour(this, 60000) {
+            @Override
+            protected void onTick() {
+                // Update the list of buyer agents
+                DFAgentDescription template = new DFAgentDescription();
+                ServiceDescription sd = new ServiceDescription();
+                sd.setType("book-auction");
+                template.addServices(sd);
+                try {
+                    DFAgentDescription[] result = DFService.search(myAgent, template);
+                    System.out.println("Found the following seller agents:");
+                    agentesComprador = new AID[result.length];
+                    for (int i = 0; i < result.length; ++i) {
+                        agentesComprador[i] = result[i].getName();
+                        System.out.println(agentesComprador[i].getName());
+                    }
+                } catch (FIPAException fe) {
+                    fe.printStackTrace();
+                }
+
+            }
+
+        });
+                        
                 
-		// Register the book-selling service in the yellow pages
-		DFAgentDescription dfd = new DFAgentDescription();
-		dfd.setName(getAID());
-		ServiceDescription sd = new ServiceDescription();
-		sd.setType("book-auction");
-		sd.setName("JADE-book-auction");
-		dfd.addServices(sd);
-		try {
-			DFService.register(this, dfd);
-		}
-		catch (FIPAException fe) {
-			fe.printStackTrace();
-		}
-
-		// Agrega el comportamiento de las consultas de servicio del agente comprador 
-		addBehaviour(new OfferRequestsServer());
-
-		// Añadir el comportamiento de servicio de las órdenes de compra de los agentes compradores
-		addBehaviour(new BidOrdersServer()); 
 	}
 
 	// Put agent clean-up operations here
+        @Override
 	protected void takeDown() {
-		// Deregister from the yellow pages
-		try {
-			DFService.deregister(this);
-		}
-		catch (FIPAException fe) {
-			fe.printStackTrace();
-		}
 		// Close the GUI
 		myGui.dispose();
 		// Printout a dismissal message
@@ -73,72 +78,93 @@ public class AgenteVendedor extends Agent {
 			public void action() {
 				catalogue.put(titulo, sb);
 				myGui.mostrarNotificacion("Nueva Subasta:\nLibro: "+sb.getTituloLibro()+" Precio Inicial  = "+sb.getPrecio()+"\n");
+                                myAgent.addBehaviour(new BidOrdersServer(sb)); 
 			}
 		} );
 	}
 
-        // Comportamiento de las consultas de servicio del agente comprador 
-	private class OfferRequestsServer extends CyclicBehaviour {
-                @Override
-		public void action() {
-			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.CFP);
-			ACLMessage msg = myAgent.receive(mt);
-			if (msg != null) {
-				// CFP Message received. Process it
-				String title = msg.getContent();
-				ACLMessage reply = msg.createReply();
-                                
-                                // Obtención del precio actual del libro
-				Integer price = catalogue.get(title).getPrecio();
-                                
-				if (price != null) {
-					// The requested book is available for sale. Reply with the price
-					reply.setPerformative(ACLMessage.PROPOSE);
-					reply.setContent(String.valueOf(price.intValue()));
-				}
-				else {
-					// The requested book is NOT available for sale.
-					reply.setPerformative(ACLMessage.REFUSE);
-					reply.setContent("not-available");
-				}
-				myAgent.send(reply);
-			}
-			else {
-				block();
-			}
-		}
-	}  // End of inner class OfferRequestsServer
-
-        // TODO: contabilizar el numer ode pujantes
         
-        // Comportamiento de puja de uno de los clientes
+        // Comportamiento asociado a cada subasta
 	private class BidOrdersServer extends CyclicBehaviour {
-                @Override
-		public void action() {
-			MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL);
-			ACLMessage msg = myAgent.receive(mt);
-			if (msg != null) {
-				// ACCEPT_PROPOSAL Message received. Process it
-				String title = msg.getContent();
-				ACLMessage reply = msg.createReply();
+            private int step = 0;
+            private MessageTemplate mt; // The template to receive replies
+            private Subasta sb;
+            private int respuestasCompradores = 0;
+            
+            public BidOrdersServer(Subasta sb){
+                this.sb = sb;
+            }
+            
+            @Override
+            public void action() {                               
+                boolean primero = true;
+                
+                
+                switch(step){  
+                
+                // Aviso a los compradores     
+                case 0:    
+                    ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
+                    for (int i = 0; i < agentesComprador.length; ++i) {
+                        cfp.addReceiver(agentesComprador[i]);
+                    }
+                    cfp.setContent("Libro: "+sb.getTituloLibro()+" Precio: "+sb.getPrecio());
+                    cfp.setConversationId("subasta-libro");
+                    cfp.setReplyWith("cfp" + System.currentTimeMillis()); // Unique value
+                    myAgent.send(cfp);
+                    // Prepare the template to get proposals
+                    mt = MessageTemplate.and(MessageTemplate.MatchConversationId("subasta-libro"),
+                            MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
+                    step = 1;
+                    break;
 
-				Integer price = catalogue.remove(title).getPrecio();
-				if (price != null) {
-					reply.setPerformative(ACLMessage.INFORM);
-					myGui.mostrarNotificacion(msg.getSender().getName()+" ha pujado por: "+title);
-                                        
-				}
-				else {
-					// The requested book has been sold to another buyer in the meanwhile .
-					reply.setPerformative(ACLMessage.FAILURE);
-					reply.setContent("not-available");
-				}
-				myAgent.send(reply);
-			}
-			else {
-                            myGui.mostrarNotificacion("Hay "+" pujantes");
+                // Recibir las respuestas de los compradores    
+                case 1:
+                        // Receive all proposals/refusals from seller agents
+                        ACLMessage reply = myAgent.receive(mt);
+                        if (reply != null) {
+                            // Reply received
+                            if (reply.getPerformative() == ACLMessage.PROPOSE) {
+                                // This is an auction 
+                                if(primero == true){
+                                    sb.setGanador(reply.getSender());
+                                    primero = false;
+                                }
+                                
+                            }
+                            respuestasCompradores++;
+                            
+                            //TODO: Hay que hacer alguna espera para recibir todas las peticiones
+                            
+                            // Si hay más de 1 respuesta 
+                            if (respuestasCompradores > 1) {
+                                step = 1;
+                            }
+                            
+                            // Si en esta subida no puja ningún comprador
+                            if (respuestasCompradores == 0) {
+                                step = 2;
+                            }
+                            
+                            if (respuestasCompradores == 1){
+                                step = 2;
+                            }
+                            
+                        } else {
                             block();
-			}
-		}
-	}  // End of inner class OfferRequestsServer
+                        }
+                    
+                    break;
+                
+                // Avisar al ganador de la puja y al resto de compradores    
+                case 2:
+                    
+                    break;
+                }
+                
+                
+            }
+                        
+    
+	}  
 }
