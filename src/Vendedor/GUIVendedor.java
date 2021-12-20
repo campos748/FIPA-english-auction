@@ -287,6 +287,17 @@ public class GUIVendedor extends javax.swing.JFrame {
     void actualizarGanador(Subasta sb) {
         for (int i = 0; i < tablaSubastas.getRowCount(); i++) {
             if (tablaSubastas.getModel().getValueAt(i, 0) == sb.getTituloLibro()) {
+                tablaSubastas.getModel().setValueAt(sb.getGanador().toString(), i, 1);
+                return;
+            }
+        }
+    }
+
+    
+    // Función para actualizar el precio de una subasta activa
+    void actualizarPrecio(Subasta sb) {
+        for (int i = 0; i < tablaSubastas.getRowCount(); i++) {
+            if (tablaSubastas.getModel().getValueAt(i, 0) == sb.getTituloLibro()) {
                 tablaSubastas.getModel().setValueAt(sb.getPrecio(), i, 2);
                 return;
             }

@@ -2,6 +2,7 @@ package Vendedor;
 
 import jade.core.AID;
 import jade.core.Agent;
+import jade.core.behaviours.Behaviour;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.TickerBehaviour;
@@ -36,32 +37,6 @@ public class AgenteVendedor extends Agent {
         myGui = new GUIVendedor(this);
         myGui.showGui();
         
-        // Comportamiento para ir añadiendo nuevos posibles compradores
-        addBehaviour(new TickerBehaviour(this, 60000) {
-            @Override
-            protected void onTick() {
-                // Update the list of buyer agents
-                DFAgentDescription template = new DFAgentDescription();
-                ServiceDescription sd = new ServiceDescription();
-                sd.setType("book-auction");
-                template.addServices(sd);
-                try {
-                    DFAgentDescription[] result = DFService.search(myAgent, template);
-                    System.out.println("Found the following seller agents:");
-                    agentesComprador = new AID[result.length];
-                    for (int i = 0; i < result.length; ++i) {
-                        agentesComprador[i] = result[i].getName();
-                        System.out.println(agentesComprador[i].getName());
-                    }
-                } catch (FIPAException fe) {
-                    fe.printStackTrace();
-                }
-
-            }
-
-        });
-                        
-                
 	}
 
 	// Put agent clean-up operations here
@@ -106,6 +81,9 @@ public class AgenteVendedor extends Agent {
                 
                 // Aviso a los compradores     
                 case 0:
+                    
+                    myAgent.addBehaviour(new BuscarCompradores());
+                    
                     if (agentesComprador != null) {
                         ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
                         for (int i = 0; i < agentesComprador.length; ++i) {
@@ -128,11 +106,11 @@ public class AgenteVendedor extends Agent {
                 // Recibir las respuestas de los compradores    
                 case 1:
                     // Espera para recibir todas las respuestas
-                    try {
-                        TimeUnit.SECONDS.sleep(10);
-                    } catch (InterruptedException ex) {
-                        Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
-                    }
+//                    try {
+//                        TimeUnit.SECONDS.sleep(10);
+//                    } catch (InterruptedException ex) {
+//                        Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+//                    }
 
                     // Receive all proposals/refusals from seller agents
                     ACLMessage reply = myAgent.receive(mt);
@@ -145,27 +123,27 @@ public class AgenteVendedor extends Agent {
                                 myGui.actualizarGanador(sb);
                                 primero = false;
                             }
-
+                            else{
+                                sb.anadirParticipantate(reply.getSender());
+                            }
                         }
                         respuestasCompradores++;
 
                         // Si hay más de 1 respuesta 
                         if (respuestasCompradores > 1) {
+                            sb.incrementar();
+                            myGui.actualizarPrecio(sb); 
                             step = 1;
                         }
 
-                        // Si en esta subida no puja ningún comprador
-                        if (respuestasCompradores == 0) {
+                        // Ya se ha determinado el ganador
+                        if (respuestasCompradores <= 1) {
                             step = 2;
                         }
 
-                        if (respuestasCompradores == 1) {
-                            step = 2;
-                        }
 
-                    } else {
-                        block();
-                    }
+                    } 
+                    
 
                     break;
                 
@@ -177,7 +155,34 @@ public class AgenteVendedor extends Agent {
                 
                 
             }
-                        
-    
-	}  
+	}
+        
+        
+    private class BuscarCompradores extends OneShotBehaviour {
+
+        @Override
+        public void action() {
+            // Update the list of buyer agents
+                DFAgentDescription template = new DFAgentDescription();
+                ServiceDescription sd = new ServiceDescription();
+                sd.setType("book-auction");
+                template.addServices(sd);
+                try {
+                    DFAgentDescription[] result = DFService.search(myAgent, template);
+                    System.out.println("Found the following seller agents:");
+                    agentesComprador = new AID[result.length];
+                    for (int i = 0; i < result.length; ++i) {
+                        agentesComprador[i] = result[i].getName();
+                        System.out.println(agentesComprador[i].getName());
+                    }
+                } catch (FIPAException fe) {
+                    fe.printStackTrace();
+                }
+        }
+
+    }
+        
+        
+        
+        
 }

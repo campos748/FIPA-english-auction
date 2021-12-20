@@ -6,6 +6,7 @@
 package Vendedor;
 
 import jade.core.AID;
+import java.util.ArrayList;
 
 /**
  *
@@ -17,11 +18,13 @@ public class Subasta {
     private Float precio;
     private Float incremento;
     private AID ganador;
+    private ArrayList<AID> participantes;
 
     public Subasta(String tituloLibro, Float precioInicial, Float incremento) {
         this.tituloLibro = tituloLibro;
         this.precio = precioInicial;
         this.incremento = incremento;
+        this.participantes = new ArrayList<>();
     }
 
     public String getTituloLibro() {
@@ -46,6 +49,19 @@ public class Subasta {
     
     public void setPrecioInicial(Float precioInicial) {
         this.precio = precioInicial;
+    }
+    
+    // Función para fijar el nuevo precio de la subasta en función del incremento
+    public void incrementar(){
+        this.precio = this.precio+this.incremento;
+    }
+
+    public ArrayList<AID> getParticipantes() {
+        return participantes;
+    }
+
+    public void anadirParticipantate(AID ag){
+        participantes.add(ag);
     }
     
     
