@@ -15,7 +15,7 @@ import java.util.HashMap;
 
 public class AgenteComprador extends Agent{ 
         // HasMap con cada uno de los libros que quiere el agente y su precio maximo
-        private HashMap<String,Integer> librosInteres;
+        private HashMap<String,Float> librosInteres;
         //Interfaz gráfica
         private GUIComprador myGui;
 
@@ -61,12 +61,12 @@ public class AgenteComprador extends Agent{
 		System.out.println("Seller-agent "+getAID().getName()+" terminating.");
 	}
         
-        public void anadirInteres(String titulo, Integer precioMaximo) {
+        public void anadirInteres(String titulo, Float precioMaximo) {
 		addBehaviour(new OneShotBehaviour() {
                         @Override
 			public void action() {
 				librosInteres.put(titulo, precioMaximo);
-				myGui.mostrarNotificacion("Nuevo Interés:\nLibro: "+ titulo + "Precio Maximo = "+Integer.toString(precioMaximo)+"\n");
+				myGui.mostrarNotificacion("Nuevo Interés:\nLibro: "+ titulo + "Precio Maximo = "+Float.toString(precioMaximo)+"\n");
 			}
 		} );
 	}
@@ -84,7 +84,46 @@ public class AgenteComprador extends Agent{
 
             @Override
             public void action() {
-                
+                MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.CFP);
+                ACLMessage msg = myAgent.receive(mt);
+                if (msg != null) {
+                    // ACCEPT_PROPOSAL Message received. Process it
+                    String mensaje = msg.getContent();
+                    ACLMessage reply = msg.createReply();
+
+                    // Separo el mensaje para conocer el libro y el valor
+                    String[] arrOfStr = mensaje.split(" ", 4);
+                    String tituloMen = arrOfStr[1];
+                    Float precioMen = Float.parseFloat(arrOfStr[3]);
+
+                    if (precioMen != null) {
+                        if (librosInteres.containsKey(tituloMen)) {
+
+                            //Si estoy dispuesto a pagar más del precio del mensaje o el mismo, respondo
+                            if (librosInteres.get(tituloMen) >= precioMen) {
+
+                                reply.setPerformative(ACLMessage.PROPOSE);
+                                myGui.mostrarNotificacion("Se ha pujado por " + tituloMen + " al agente " + msg.getSender().getName());
+                                myGui.actualizarPrecio(tituloMen,precioMen);
+                                
+                            } else {
+                                reply.setPerformative(ACLMessage.FAILURE);
+                                reply.setContent("demasidado-caro");
+                            }
+                        }
+                        else{
+                            reply.setPerformative(ACLMessage.FAILURE);
+                            reply.setContent("no-interesado");
+                        }
+                    } else {
+                        // The requested book has been sold to another buyer in the meanwhile .
+                        reply.setPerformative(ACLMessage.FAILURE);
+                        reply.setContent("not-available");
+                    }
+                    myAgent.send(reply);
+                } else {
+                    block();
+                }
             }
 
         

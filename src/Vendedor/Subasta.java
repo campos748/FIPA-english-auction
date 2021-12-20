@@ -14,11 +14,11 @@ import jade.core.AID;
 public class Subasta {
     
     private String tituloLibro;
-    private int precio;
-    private int incremento;
+    private Float precio;
+    private Float incremento;
     private AID ganador;
 
-    public Subasta(String tituloLibro, int precioInicial, int incremento) {
+    public Subasta(String tituloLibro, Float precioInicial, Float incremento) {
         this.tituloLibro = tituloLibro;
         this.precio = precioInicial;
         this.incremento = incremento;
@@ -28,11 +28,11 @@ public class Subasta {
         return tituloLibro;
     }
 
-    public int getPrecio() {
+    public Float getPrecio() {
         return precio;
     }
 
-    public int getIncremento() {
+    public Float getIncremento() {
         return incremento;
     }
 
@@ -44,7 +44,7 @@ public class Subasta {
         this.ganador = ganador;
     }
     
-    public void setPrecioInicial(int precioInicial) {
+    public void setPrecioInicial(Float precioInicial) {
         this.precio = precioInicial;
     }
     

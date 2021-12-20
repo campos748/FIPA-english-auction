@@ -15,6 +15,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import java.util.Hashtable;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class AgenteVendedor extends Agent {
 	// The catalogue of books for sale (maps the title of a book to its price)
@@ -77,7 +80,6 @@ public class AgenteVendedor extends Agent {
                         @Override
 			public void action() {
 				catalogue.put(titulo, sb);
-				myGui.mostrarNotificacion("Nueva Subasta:\nLibro: "+sb.getTituloLibro()+" Precio Inicial  = "+sb.getPrecio()+"\n");
                                 myAgent.addBehaviour(new BidOrdersServer(sb)); 
 			}
 		} );
@@ -103,57 +105,68 @@ public class AgenteVendedor extends Agent {
                 switch(step){  
                 
                 // Aviso a los compradores     
-                case 0:    
-                    ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
-                    for (int i = 0; i < agentesComprador.length; ++i) {
-                        cfp.addReceiver(agentesComprador[i]);
+                case 0:
+                    if (agentesComprador != null) {
+                        ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
+                        for (int i = 0; i < agentesComprador.length; ++i) {
+                            cfp.addReceiver(agentesComprador[i]);
+                        }
+                        cfp.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+                        cfp.setConversationId("subasta-libro");
+                        cfp.setReplyWith("cfp" + System.currentTimeMillis()); // Unique value
+                        myAgent.send(cfp);
+                        // Prepare the template to get proposals
+                        mt = MessageTemplate.and(MessageTemplate.MatchConversationId("subasta-libro"),
+                                MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
+                        step = 1;
                     }
-                    cfp.setContent("Libro: "+sb.getTituloLibro()+" Precio: "+sb.getPrecio());
-                    cfp.setConversationId("subasta-libro");
-                    cfp.setReplyWith("cfp" + System.currentTimeMillis()); // Unique value
-                    myAgent.send(cfp);
-                    // Prepare the template to get proposals
-                    mt = MessageTemplate.and(MessageTemplate.MatchConversationId("subasta-libro"),
-                            MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
-                    step = 1;
+                    else{
+                        myGui.mostrarNotificacion("No hay compradores");
+                    }
                     break;
 
                 // Recibir las respuestas de los compradores    
                 case 1:
-                        // Receive all proposals/refusals from seller agents
-                        ACLMessage reply = myAgent.receive(mt);
-                        if (reply != null) {
-                            // Reply received
-                            if (reply.getPerformative() == ACLMessage.PROPOSE) {
-                                // This is an auction 
-                                if(primero == true){
-                                    sb.setGanador(reply.getSender());
-                                    primero = false;
-                                }
-                                
+                    // Espera para recibir todas las respuestas
+                    try {
+                        TimeUnit.SECONDS.sleep(10);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+
+                    // Receive all proposals/refusals from seller agents
+                    ACLMessage reply = myAgent.receive(mt);
+                    if (reply != null) {
+                        // Reply received
+                        if (reply.getPerformative() == ACLMessage.PROPOSE) {
+                            // This is an auction 
+                            if (primero == true) {
+                                sb.setGanador(reply.getSender());
+                                myGui.actualizarGanador(sb);
+                                primero = false;
                             }
-                            respuestasCompradores++;
-                            
-                            //TODO: Hay que hacer alguna espera para recibir todas las peticiones
-                            
-                            // Si hay más de 1 respuesta 
-                            if (respuestasCompradores > 1) {
-                                step = 1;
-                            }
-                            
-                            // Si en esta subida no puja ningún comprador
-                            if (respuestasCompradores == 0) {
-                                step = 2;
-                            }
-                            
-                            if (respuestasCompradores == 1){
-                                step = 2;
-                            }
-                            
-                        } else {
-                            block();
+
                         }
-                    
+                        respuestasCompradores++;
+
+                        // Si hay más de 1 respuesta 
+                        if (respuestasCompradores > 1) {
+                            step = 1;
+                        }
+
+                        // Si en esta subida no puja ningún comprador
+                        if (respuestasCompradores == 0) {
+                            step = 2;
+                        }
+
+                        if (respuestasCompradores == 1) {
+                            step = 2;
+                        }
+
+                    } else {
+                        block();
+                    }
+
                     break;
                 
                 // Avisar al ganador de la puja y al resto de compradores    
