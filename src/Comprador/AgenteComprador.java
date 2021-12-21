@@ -111,7 +111,7 @@ public class AgenteComprador extends Agent{
                             if (librosInteres.get(tituloMen) >= precioMen) {
 
                                 reply.setPerformative(ACLMessage.PROPOSE);
-                                myGui.mostrarNotificacion("Se ha pujado por " + tituloMen + " al agente " + msg.getSender().getName());
+                                myGui.mostrarNotificacion("Se ha pujado por " + tituloMen + " al agente " + msg.getSender().getName()+" por "+precioMen.toString()+" €\n");
                                 myGui.actualizarPrecio(tituloMen,precioMen);
                                 
                             } else {

@@ -286,9 +286,9 @@ public class GUIVendedor extends javax.swing.JFrame {
     // Función para actualizar el ganador de una subasta activa
     void actualizarGanador(Subasta sb) {
         for (int i = 0; i < tablaSubastas.getRowCount(); i++) {
-            if (tablaSubastas.getModel().getValueAt(i, 0) == sb.getTituloLibro()) {
-                tablaSubastas.getModel().setValueAt(sb.getGanador().toString(), i, 1);
-                return;
+            if (tablaSubastas.getModel().getValueAt(i, 0).equals(sb.getTituloLibro())) {
+                tablaSubastas.getModel().setValueAt(sb.getGanador().getName(), i, 1);
+                return; 
             }
         }
     }
@@ -297,8 +297,18 @@ public class GUIVendedor extends javax.swing.JFrame {
     // Función para actualizar el precio de una subasta activa
     void actualizarPrecio(Subasta sb) {
         for (int i = 0; i < tablaSubastas.getRowCount(); i++) {
-            if (tablaSubastas.getModel().getValueAt(i, 0) == sb.getTituloLibro()) {
+            if (tablaSubastas.getModel().getValueAt(i, 0).equals(sb.getTituloLibro())) {
                 tablaSubastas.getModel().setValueAt(sb.getPrecio(), i, 2);
+                return;
+            }
+        }
+    }
+
+    // Función para indicar que una determinada subasta a finalizado
+    void terminarSubasta(Subasta sb) {
+        for (int i = 0; i < tablaSubastas.getRowCount(); i++) {
+            if (tablaSubastas.getModel().getValueAt(i, 0).equals(sb.getTituloLibro())) {
+                tablaSubastas.getModel().setValueAt("Finalizada", i, 3);
                 return;
             }
         }

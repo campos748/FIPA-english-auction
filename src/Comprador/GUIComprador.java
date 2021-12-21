@@ -238,7 +238,7 @@ public class GUIComprador extends javax.swing.JFrame {
     // Función para ir actualizando el precio de la subasta
     void actualizarPrecio(String tituloMen, Float precioMen) {
         for (int i = 0; i < tablaInteres.getRowCount(); i++) {
-            if (tablaInteres.getModel().getValueAt(i, 0) == tituloMen) {
+            if (tablaInteres.getModel().getValueAt(i, 0).equals(tituloMen)) {
                 
                 tablaInteres.getModel().setValueAt(precioMen, i, 2);
                 tablaInteres.getModel().setValueAt("Subasta en Curso", i, 3);
@@ -250,11 +250,10 @@ public class GUIComprador extends javax.swing.JFrame {
     // Función para actualizar la tabla al ganar una subasta
     void subastaGanada(String tituloMen, Float precioMen) {
         // Notificacion 
-        this.mostrarNotificacion("Se ha ganado la subasta del libro "+tituloMen+" por "+precioMen.toString());
+        this.mostrarNotificacion("Se ha ganado la subasta del libro "+tituloMen+" por "+precioMen.toString()+"\n");
         // Tabla
         for (int i = 0; i < tablaInteres.getRowCount(); i++) {
-            if (tablaInteres.getModel().getValueAt(i, 0) == tituloMen) {
-                
+            if (tablaInteres.getModel().getValueAt(i, 0).equals(tituloMen)) {
                 tablaInteres.getModel().setValueAt(precioMen, i, 2);
                 tablaInteres.getModel().setValueAt("Subasta Ganada", i, 3);
                 return;
@@ -266,10 +265,10 @@ public class GUIComprador extends javax.swing.JFrame {
     // Función para actualizar la tabla al ganar una subasta
     void subastaPerdida(String tituloMen, Float precioMen) {
         // Notificacion
-        this.mostrarNotificacion("Se ha perdido la subasta del libro "+tituloMen);
+        this.mostrarNotificacion("Se ha perdido la subasta del libro "+tituloMen+"\n");
         // Tabla
         for (int i = 0; i < tablaInteres.getRowCount(); i++) {
-            if (tablaInteres.getModel().getValueAt(i, 0) == tituloMen) {
+            if (tablaInteres.getModel().getValueAt(i, 0).equals(tituloMen)) {
                 
                 tablaInteres.getModel().setValueAt(0, i, 2);
                 tablaInteres.getModel().setValueAt("Sin Subasta", i, 3);

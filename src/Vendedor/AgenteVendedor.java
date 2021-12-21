@@ -21,14 +21,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class AgenteVendedor extends Agent {
-	// The catalogue of books for sale (maps the title of a book to its price)
-	private HashMap<String,Subasta> catalogue;
-	// The GUI by means of which the user can add books in the catalogue
-	private GUIVendedor myGui;
-        AID[] agentesComprador;
-        
-	// Put agent initializations here
-       @Override
+    // The catalogue of books for sale (maps the title of a book to its price)
+
+    private HashMap<String, Subasta> catalogue;
+    // The GUI by means of which the user can add books in the catalogue
+    private GUIVendedor myGui;
+    AID[] agentesComprador;
+
+    // Put agent initializations here
+    @Override
     protected void setup() {
         // Create the catalogue
         catalogue = new HashMap();
@@ -36,54 +37,51 @@ public class AgenteVendedor extends Agent {
         // Create and show the GUI 
         myGui = new GUIVendedor(this);
         myGui.showGui();
-        
-	}
 
-	// Put agent clean-up operations here
-        @Override
-	protected void takeDown() {
-		// Close the GUI
-		myGui.dispose();
-		// Printout a dismissal message
-		System.out.println("Seller-agent "+getAID().getName()+" terminating.");
-	}
+    }
 
-        
-        
-	public void anadirSubasta(String titulo, Subasta sb) {
-		addBehaviour(new OneShotBehaviour() {
-                        @Override
-			public void action() {
-				catalogue.put(titulo, sb);
-                                myAgent.addBehaviour(new BidOrdersServer(sb)); 
-			}
-		} );
-	}
+    // Put agent clean-up operations here
+    @Override
+    protected void takeDown() {
+        // Close the GUI
+        myGui.dispose();
+        // Printout a dismissal message
+        System.out.println("Seller-agent " + getAID().getName() + " terminating.");
+    }
 
-        
-        // Comportamiento asociado a cada subasta
-	private class BidOrdersServer extends CyclicBehaviour {
-            private int step = 0;
-            private MessageTemplate mt; // The template to receive replies
-            private Subasta sb;
-            private int respuestasCompradores = 0;
-            
-            public BidOrdersServer(Subasta sb){
-                this.sb = sb;
-            }
-            
+    public void anadirSubasta(String titulo, Subasta sb) {
+        addBehaviour(new OneShotBehaviour() {
             @Override
-            public void action() {                               
-                boolean primero = true;
-                
-                
-                switch(step){  
-                
+            public void action() {
+                catalogue.put(titulo, sb);
+                myAgent.addBehaviour(new BidOrdersServer(sb));
+            }
+        });
+    }
+
+    // Comportamiento asociado a cada subasta
+    private class BidOrdersServer extends Behaviour {
+
+        private int step = 0;
+        private MessageTemplate mt; // The template to receive replies
+        private Subasta sb;
+        private int respuestasCompradores = 0;
+
+        public BidOrdersServer(Subasta sb) {
+            this.sb = sb;
+        }
+
+        @Override
+        public void action() {
+            boolean primero = true;
+
+            switch (step) {
+
                 // Aviso a los compradores     
                 case 0:
-                    
+
                     myAgent.addBehaviour(new BuscarCompradores());
-                    
+
                     if (agentesComprador != null) {
                         ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
                         for (int i = 0; i < agentesComprador.length; ++i) {
@@ -97,8 +95,7 @@ public class AgenteVendedor extends Agent {
                         mt = MessageTemplate.and(MessageTemplate.MatchConversationId("subasta-libro"),
                                 MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
                         step = 1;
-                    }
-                    else{
+                    } else {
                         myGui.mostrarNotificacion("No hay compradores");
                     }
                     break;
@@ -106,11 +103,11 @@ public class AgenteVendedor extends Agent {
                 // Recibir las respuestas de los compradores    
                 case 1:
                     // Espera para recibir todas las respuestas
-//                    try {
-//                        TimeUnit.SECONDS.sleep(10);
-//                    } catch (InterruptedException ex) {
-//                        Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
-//                    }
+                    try {
+                        TimeUnit.SECONDS.sleep(10);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                    }
 
                     // Receive all proposals/refusals from seller agents
                     ACLMessage reply = myAgent.receive(mt);
@@ -122,8 +119,7 @@ public class AgenteVendedor extends Agent {
                                 sb.setGanador(reply.getSender());
                                 myGui.actualizarGanador(sb);
                                 primero = false;
-                            }
-                            else{
+                            } else {
                                 sb.anadirParticipantate(reply.getSender());
                             }
                         }
@@ -132,7 +128,7 @@ public class AgenteVendedor extends Agent {
                         // Si hay más de 1 respuesta 
                         if (respuestasCompradores > 1) {
                             sb.incrementar();
-                            myGui.actualizarPrecio(sb); 
+                            myGui.actualizarPrecio(sb);
                             step = 1;
                         }
 
@@ -141,14 +137,15 @@ public class AgenteVendedor extends Agent {
                             step = 2;
                         }
 
-
-                    } 
-                    
+                    }
 
                     break;
-                
+
                 // Avisar al ganador de la puja y al resto de compradores    
                 case 2:
+                    // Marcar Subasta como terminada
+                    myGui.terminarSubasta(sb);
+                    
                     // Mensaje de aceptación
                     ACLMessage acept = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
                     acept.addReceiver(sb.getGanador());
@@ -156,7 +153,7 @@ public class AgenteVendedor extends Agent {
                     acept.setConversationId("compra-libro");
                     acept.setReplyWith("acept" + System.currentTimeMillis()); // Unique value
                     myAgent.send(acept);
-                    
+
                     // Mensaje de rechazo
                     ACLMessage reject = new ACLMessage(ACLMessage.REJECT_PROPOSAL);
                     //Aviso a los que perdiron la puja
@@ -168,23 +165,26 @@ public class AgenteVendedor extends Agent {
                     reject.setReplyWith("reject" + System.currentTimeMillis()); // Unique value
                     myAgent.send(reject);
                     
-                    step = 3;
+                    // Elimino el libro del catálogo
+                    catalogue.remove(sb.getTituloLibro());
+                                
+                    step = 4;
                     break;
-                
-                // Confirmación de compra
-                case 3:
-                
-                
-                }
+
             }
-	}
-        
-        
-    private class BuscarCompradores extends OneShotBehaviour {
+        }
 
         @Override
-        public void action() {
-            // Update the list of buyer agents
+        public boolean done() {
+            return step == 4;
+        }
+        
+
+        private class BuscarCompradores extends OneShotBehaviour {
+
+            @Override
+            public void action() {
+                // Update the list of buyer agents
                 DFAgentDescription template = new DFAgentDescription();
                 ServiceDescription sd = new ServiceDescription();
                 sd.setType("book-auction");
@@ -200,11 +200,10 @@ public class AgenteVendedor extends Agent {
                 } catch (FIPAException fe) {
                     fe.printStackTrace();
                 }
+            }
+
         }
 
     }
-        
-        
-        
-        
+
 }
