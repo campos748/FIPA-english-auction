@@ -84,8 +84,16 @@ public class AgenteComprador extends Agent{
 
             @Override
             public void action() {
+                
                 MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.CFP);
                 ACLMessage msg = myAgent.receive(mt);
+                
+                MessageTemplate mt1 = MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                ACLMessage win = myAgent.receive(mt1);
+                
+                MessageTemplate mt2 = MessageTemplate.MatchPerformative(ACLMessage.REJECT_PROPOSAL);
+                ACLMessage loss = myAgent.receive(mt2);
+                
                 if (msg != null) {
                     // ACCEPT_PROPOSAL Message received. Process it
                     String mensaje = msg.getContent();
@@ -121,8 +129,34 @@ public class AgenteComprador extends Agent{
                         reply.setContent("not-available");
                     }
                     myAgent.send(reply);
-                } else {
-                    block();
+                }
+                // Notificación de ganar una subasta
+                if(win != null){
+                    String mensaje = win.getContent();
+                    // Separo el mensaje para conocer el libro y el valor
+                    String[] arrOfStr = mensaje.split(" ", 4);
+                    String tituloMen = arrOfStr[1];
+                    Float precioMen = Float.parseFloat(arrOfStr[3]);
+                    
+                    // Quito el libro del catalogo de intereses
+                    librosInteres.remove(tituloMen);
+                    //Actualizo la tabla de la GUI
+                    myGui.subastaGanada(tituloMen,precioMen);
+                    
+                }
+                // Notificación de perder una subasta
+                if(loss != null){
+                    String mensaje = win.getContent();
+                    // Separo el mensaje para conocer el libro y el valor
+                    String[] arrOfStr = mensaje.split(" ", 4);
+                    String tituloMen = arrOfStr[1];
+                    Float precioMen = Float.parseFloat(arrOfStr[3]);
+                    
+                    //Actualizo la tabla de la GUI
+                    myGui.subastaPerdida(tituloMen,precioMen);
+                }
+                else {
+                    block();    // Bloqueo en caso de no recibir ningún mensaje
                 }
             }
 

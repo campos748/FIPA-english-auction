@@ -149,11 +149,33 @@ public class AgenteVendedor extends Agent {
                 
                 // Avisar al ganador de la puja y al resto de compradores    
                 case 2:
+                    // Mensaje de aceptación
+                    ACLMessage acept = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
+                    acept.addReceiver(sb.getGanador());
+                    acept.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+                    acept.setConversationId("compra-libro");
+                    acept.setReplyWith("acept" + System.currentTimeMillis()); // Unique value
+                    myAgent.send(acept);
                     
+                    // Mensaje de rechazo
+                    ACLMessage reject = new ACLMessage(ACLMessage.REJECT_PROPOSAL);
+                    //Aviso a los que perdiron la puja
+                    for (int i = 0; i < sb.getParticipantes().size(); i++) {
+                        reject.addReceiver(sb.getParticipantes().get(i));
+                    }
+                    reject.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+                    reject.setConversationId("compra-libro");
+                    reject.setReplyWith("reject" + System.currentTimeMillis()); // Unique value
+                    myAgent.send(reject);
+                    
+                    step = 3;
                     break;
+                
+                // Confirmación de compra
+                case 3:
+                
+                
                 }
-                
-                
             }
 	}
         
