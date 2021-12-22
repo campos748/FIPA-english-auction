@@ -3,22 +3,18 @@ package Vendedor;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
-import jade.core.behaviours.CyclicBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
-import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
-import java.util.ArrayList;
 import java.util.HashMap;
-
-import java.util.Hashtable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 
 public class AgenteVendedor extends Agent {
     // The catalogue of books for sale (maps the title of a book to its price)
@@ -43,6 +39,7 @@ public class AgenteVendedor extends Agent {
     // Put agent clean-up operations here
     @Override
     protected void takeDown() {
+        super.takeDown();
         // Close the GUI
         myGui.dispose();
         // Printout a dismissal message
@@ -66,22 +63,40 @@ public class AgenteVendedor extends Agent {
         private MessageTemplate mt; // The template to receive replies
         private Subasta sb;
         private int respuestasCompradores = 0;
-
+        private int respuestas = 0;
+        boolean primero = true;
+        boolean retroceder = false;
+        
         public BidOrdersServer(Subasta sb) {
             this.sb = sb;
         }
 
         @Override
         public void action() {
-            boolean primero = true;
-
+            
+                    
             switch (step) {
 
-                // Aviso a los compradores     
+                //Busqueda y Aviso a los compradores     
                 case 0:
-
-                    myAgent.addBehaviour(new BuscarCompradores());
-
+                    // Busqueda
+                    DFAgentDescription template = new DFAgentDescription();
+                    ServiceDescription sd = new ServiceDescription();
+                    sd.setType("book-auction");
+                    template.addServices(sd);
+                    try {
+                        DFAgentDescription[] result = DFService.search(myAgent, template);
+                        System.out.println("Found the following seller agents:");
+                        agentesComprador = new AID[result.length];
+                        for (int i = 0; i < result.length; ++i) {
+                            agentesComprador[i] = result[i].getName();
+                            System.out.println(agentesComprador[i].getName());
+                        }
+                    } catch (FIPAException fe) {
+                        fe.printStackTrace();
+                    }
+                    
+                    // Aviso
                     if (agentesComprador != null) {
                         ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
                         for (int i = 0; i < agentesComprador.length; ++i) {
@@ -95,74 +110,122 @@ public class AgenteVendedor extends Agent {
                         mt = MessageTemplate.and(MessageTemplate.MatchConversationId("subasta-libro"),
                                 MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
                         step = 1;
-                    } else {
-                        myGui.mostrarNotificacion("No hay compradores");
-                    }
+                    } 
                     break;
 
                 // Recibir las respuestas de los compradores    
                 case 1:
-                    // Espera para recibir todas las respuestas
-                    try {
-                        TimeUnit.SECONDS.sleep(10);
-                    } catch (InterruptedException ex) {
-                        Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-
                     // Receive all proposals/refusals from seller agents
                     ACLMessage reply = myAgent.receive(mt);
+                    
                     if (reply != null) {
                         // Reply received
                         if (reply.getPerformative() == ACLMessage.PROPOSE) {
                             // This is an auction 
-                            if (primero == true) {
-                                sb.setGanador(reply.getSender());
-                                myGui.actualizarGanador(sb);
-                                primero = false;
-                            } else {
-                                sb.anadirParticipantate(reply.getSender());
+                            if (reply.getContent().equals("interesado")) {
+                                if (primero == true) {
+                                    sb.setGanador(reply.getSender());
+                                    sb.filtrarParticipantes();
+                                    myGui.actualizarGanador(sb);
+                                    primero = false;
+                                } else {
+                                    sb.anadirParticipantate(reply.getSender());
+                                    sb.filtrarParticipantes();
+                                }
+                                respuestasCompradores++;
+                            }
+                            respuestas++;
+                            
+                            
+                            try {
+                                TimeUnit.SECONDS.sleep(5);
+                            } catch (InterruptedException ex) {
+                                Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
                             }
                         }
-                        respuestasCompradores++;
+                        
 
-                        // Si hay más de 1 respuesta 
-                        if (respuestasCompradores > 1) {
-                            sb.incrementar();
-                            myGui.actualizarPrecio(sb);
-                            step = 1;
+                        // Compruebo que todos los compradores han respondido
+                        if (respuestas == agentesComprador.length) {
+
+                            // Si hay más de 1 respuesta 
+                            if (respuestasCompradores > 1) {
+                                sb.incrementar();
+                                myGui.actualizarPrecio(sb);
+
+                                // Aviso a todos los compradores de su situación
+                                
+                                // Mensaje de ir ganando
+                                ACLMessage acept = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
+                                acept.addReceiver(sb.getGanador());
+                                acept.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+                                acept.setConversationId("compra-libro");
+                                acept.setReplyWith("acept" + System.currentTimeMillis()); // Unique value
+                                myAgent.send(acept);
+
+                                // Mensaje de ir perdiendo
+                                ACLMessage reject = new ACLMessage(ACLMessage.REJECT_PROPOSAL);
+                                //Aviso a los que están perdiendo la puja
+                                for (int i = 0; i < sb.getParticipantes().size(); i++) {
+                                    reject.addReceiver(sb.getParticipantes().get(i));
+                                }
+                                reject.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+                                reject.setConversationId("compra-libro");
+                                reject.setReplyWith("reject" + System.currentTimeMillis()); // Unique value
+                                myAgent.send(reject);
+
+                                step = 0;
+                            }
+
+                            // Ya se ha determinado el ganador
+                            if (respuestasCompradores == 1) {
+                                step = 2;
+                            }
+                            if(respuestasCompradores == 0){
+                                retroceder = true;
+                                step = 2;
+                            }
+                            
+                            
+                            primero = true;
+                            respuestasCompradores = 0;
+                            respuestas = 0;
                         }
-
-                        // Ya se ha determinado el ganador
-                        if (respuestasCompradores <= 1) {
-                            step = 2;
-                        }
-
+                        
+                        
                     }
-
+                    
                     break;
 
-                // Avisar al ganador de la puja y al resto de compradores    
+                // Avisar al ganador de la puja y al resto de compradores cuando solo hay un comprador   
                 case 2:
+                    if(retroceder == true){
+                        sb.PrecioAnterior();
+                        myGui.actualizarPrecio(sb);
+                    }
+                    
+                    sb.filtrarParticipantes();
+                    
                     // Marcar Subasta como terminada
                     myGui.terminarSubasta(sb);
                     
                     // Mensaje de aceptación
-                    ACLMessage acept = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
+                    ACLMessage acept = new ACLMessage(ACLMessage.REQUEST);
                     acept.addReceiver(sb.getGanador());
                     acept.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
                     acept.setConversationId("compra-libro");
-                    acept.setReplyWith("acept" + System.currentTimeMillis()); // Unique value
+                    acept.setReplyWith("win" + System.currentTimeMillis()); // Unique value
                     myAgent.send(acept);
 
                     // Mensaje de rechazo
-                    ACLMessage reject = new ACLMessage(ACLMessage.REJECT_PROPOSAL);
+                    ACLMessage reject = new ACLMessage(ACLMessage.INFORM);
                     //Aviso a los que perdiron la puja
                     for (int i = 0; i < sb.getParticipantes().size(); i++) {
                         reject.addReceiver(sb.getParticipantes().get(i));
                     }
                     reject.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
                     reject.setConversationId("compra-libro");
-                    reject.setReplyWith("reject" + System.currentTimeMillis()); // Unique value
+                    reject.setReplyWith("lost" + System.currentTimeMillis()); // Unique value
                     myAgent.send(reject);
                     
                     // Elimino el libro del catálogo
@@ -170,38 +233,13 @@ public class AgenteVendedor extends Agent {
                                 
                     step = 4;
                     break;
-
             }
+            
         }
 
         @Override
         public boolean done() {
             return step == 4;
-        }
-        
-
-        private class BuscarCompradores extends OneShotBehaviour {
-
-            @Override
-            public void action() {
-                // Update the list of buyer agents
-                DFAgentDescription template = new DFAgentDescription();
-                ServiceDescription sd = new ServiceDescription();
-                sd.setType("book-auction");
-                template.addServices(sd);
-                try {
-                    DFAgentDescription[] result = DFService.search(myAgent, template);
-                    System.out.println("Found the following seller agents:");
-                    agentesComprador = new AID[result.length];
-                    for (int i = 0; i < result.length; ++i) {
-                        agentesComprador[i] = result[i].getName();
-                        System.out.println(agentesComprador[i].getName());
-                    }
-                } catch (FIPAException fe) {
-                    fe.printStackTrace();
-                }
-            }
-
         }
 
     }

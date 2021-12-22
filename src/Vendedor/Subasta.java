@@ -7,6 +7,8 @@ package Vendedor;
 
 import jade.core.AID;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  *
@@ -44,6 +46,7 @@ public class Subasta {
     }
 
     public void setGanador(AID ganador) {
+        this.participantes.add(this.ganador);
         this.ganador = ganador;
     }
     
@@ -62,6 +65,22 @@ public class Subasta {
 
     public void anadirParticipantate(AID ag){
         participantes.add(ag);
+    }
+
+    void PrecioAnterior() {
+        this.precio = this.precio - this.incremento;
+    }
+
+    void filtrarParticipantes() {
+       // Elimino los repetidos
+       Set<AID> hashSet = new HashSet<AID>(this.participantes);
+       this.participantes.clear();
+       this.participantes.addAll(hashSet);
+        
+       // Elimino al ganador si se encuentra aqui 
+       if(this.participantes.contains(this.ganador))
+           this.participantes.remove(this.ganador);
+       
     }
     
     

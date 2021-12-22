@@ -20,6 +20,7 @@ public class AgenteComprador extends Agent{
         private GUIComprador myGui;
 
 	// Put agent initializations here
+        @Override
 	protected void setup() {
             // Printout a welcome message
             System.out.println("Agente comprador "+getAID().getName()+" esta listo.");
@@ -48,6 +49,7 @@ public class AgenteComprador extends Agent{
 	// Put agent clean-up operations here
         @Override
 	protected void takeDown() {
+            super.takeDown();
 		// Deregister from the yellow pages
 		try {
                     DFService.deregister(this);
@@ -66,10 +68,14 @@ public class AgenteComprador extends Agent{
                         @Override
 			public void action() {
 				librosInteres.put(titulo, precioMaximo);
-				myGui.mostrarNotificacion("Nuevo Interés:\nLibro: "+ titulo + "Precio Maximo = "+Float.toString(precioMaximo)+"\n");
+				myGui.mostrarNotificacion("Nuevo Interés:\nLibro: "+ titulo + " Precio Maximo = "+Float.toString(precioMaximo)+"\n");
 			}
 		} );
 	}
+
+    void eliminarInteres(String libro) {
+        this.librosInteres.remove(libro);
+    }
      
 
 	/**
@@ -94,6 +100,12 @@ public class AgenteComprador extends Agent{
                 MessageTemplate mt2 = MessageTemplate.MatchPerformative(ACLMessage.REJECT_PROPOSAL);
                 ACLMessage loss = myAgent.receive(mt2);
                 
+                MessageTemplate mt3 = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
+                ACLMessage sbPerdida = myAgent.receive(mt3);
+                
+                MessageTemplate mt4 = MessageTemplate.MatchPerformative(ACLMessage.REQUEST);
+                ACLMessage sbGanada = myAgent.receive(mt4);
+                
                 if (msg != null) {
                     // ACCEPT_PROPOSAL Message received. Process it
                     String mensaje = msg.getContent();
@@ -111,50 +123,70 @@ public class AgenteComprador extends Agent{
                             if (librosInteres.get(tituloMen) >= precioMen) {
 
                                 reply.setPerformative(ACLMessage.PROPOSE);
+                                reply.setContent("interesado");
                                 myGui.mostrarNotificacion("Se ha pujado por " + tituloMen + " al agente " + msg.getSender().getName()+" por "+precioMen.toString()+" €\n");
                                 myGui.actualizarPrecio(tituloMen,precioMen);
                                 
                             } else {
-                                reply.setPerformative(ACLMessage.FAILURE);
-                                reply.setContent("demasidado-caro");
+                                reply.setPerformative(ACLMessage.PROPOSE);
+                                reply.setContent("no-interesado");
                             }
                         }
                         else{
-                            reply.setPerformative(ACLMessage.FAILURE);
+                            // En caso de no estar interesado mando el mensaje
+                            reply.setPerformative(ACLMessage.PROPOSE);
                             reply.setContent("no-interesado");
                         }
-                    } else {
-                        // The requested book has been sold to another buyer in the meanwhile .
-                        reply.setPerformative(ACLMessage.FAILURE);
-                        reply.setContent("not-available");
                     }
                     myAgent.send(reply);
                 }
-                // Notificación de ganar una subasta
+                // Notificación de ir ganando una subasta
                 if(win != null){
                     String mensaje = win.getContent();
+
                     // Separo el mensaje para conocer el libro y el valor
                     String[] arrOfStr = mensaje.split(" ", 4);
                     String tituloMen = arrOfStr[1];
                     Float precioMen = Float.parseFloat(arrOfStr[3]);
                     
+                    //Actualizo la tabla de la GUI
+                    myGui.tablaWin(tituloMen, precioMen);
+                }
+                // Notificación de perder una ronda de una subasta
+                if(loss != null){
+                    String mensaje = loss.getContent();
+                    // Separo el mensaje para conocer el libro y el valor
+                    String[] arrOfStr = mensaje.split(" ", 4);
+                    String tituloMen = arrOfStr[1];
+                    Float precioMen = Float.parseFloat(arrOfStr[3]);
+                    
+                    //Actualizo la tabla de la GUI
+                    myGui.tablaLoss(tituloMen, precioMen);
+                }
+                // Cuando se gana la subasta
+                if(sbGanada != null){
+                    String mensaje = sbGanada.getContent();
+                    String[] arrOfStr = mensaje.split(" ", 4);
+                    String tituloMen = arrOfStr[1];
+                    Float precioMen = Float.parseFloat(arrOfStr[3]);
                     // Quito el libro del catalogo de intereses
                     librosInteres.remove(tituloMen);
                     //Actualizo la tabla de la GUI
                     myGui.subastaGanada(tituloMen,precioMen);
                     
                 }
-                // Notificación de perder una subasta
-                if(loss != null){
-                    String mensaje = win.getContent();
-                    // Separo el mensaje para conocer el libro y el valor
+                // Cuando se pierde la subasta
+                if(sbPerdida != null){
+                    String mensaje = sbPerdida.getContent();
                     String[] arrOfStr = mensaje.split(" ", 4);
                     String tituloMen = arrOfStr[1];
                     Float precioMen = Float.parseFloat(arrOfStr[3]);
                     
-                    //Actualizo la tabla de la GUI
+                    // Actualizo la GUI
                     myGui.subastaPerdida(tituloMen,precioMen);
                 }
+                
+
                 else {
                     block();    // Bloqueo en caso de no recibir ningún mensaje
                 }

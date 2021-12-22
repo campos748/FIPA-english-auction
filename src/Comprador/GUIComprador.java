@@ -17,7 +17,8 @@ public class GUIComprador extends javax.swing.JFrame {
     public GUIComprador(AgenteComprador a) {
         initComponents();
         this.myAgent = a;
-        
+        this.Lnombre.setText("Comprador: "+a.getName());
+        this.btnEliminarInteres.setEnabled(false);
     }
 
     /**
@@ -30,7 +31,7 @@ public class GUIComprador extends javax.swing.JFrame {
     private void initComponents() {
 
         jPanel1 = new javax.swing.JPanel();
-        jLabel1 = new javax.swing.JLabel();
+        Lnombre = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
         tituloField = new javax.swing.JTextField();
         precioMaxField = new javax.swing.JTextField();
@@ -44,11 +45,17 @@ public class GUIComprador extends javax.swing.JFrame {
         tablaInteres = new javax.swing.JTable();
         jLabel6 = new javax.swing.JLabel();
         jLabel7 = new javax.swing.JLabel();
+        btnEliminarInteres = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent evt) {
+                formWindowClosing(evt);
+            }
+        });
 
-        jLabel1.setFont(new java.awt.Font("Cortoba", 1, 24)); // NOI18N
-        jLabel1.setText("Comprador");
+        Lnombre.setFont(new java.awt.Font("Cortoba", 1, 24)); // NOI18N
+        Lnombre.setText("Comprador: ");
 
         jLabel2.setText("Nuevo Interés:");
 
@@ -56,6 +63,7 @@ public class GUIComprador extends javax.swing.JFrame {
 
         jLabel4.setText("Precio Máx");
 
+        notificaciones.setEditable(false);
         notificaciones.setColumns(20);
         notificaciones.setRows(5);
         jScrollPane1.setViewportView(notificaciones);
@@ -97,73 +105,95 @@ public class GUIComprador extends javax.swing.JFrame {
                 return canEdit [columnIndex];
             }
         });
+        tablaInteres.addFocusListener(new java.awt.event.FocusAdapter() {
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                tablaInteresFocusGained(evt);
+            }
+            public void focusLost(java.awt.event.FocusEvent evt) {
+                tablaInteresFocusLost(evt);
+            }
+        });
         jScrollPane2.setViewportView(tablaInteres);
+        if (tablaInteres.getColumnModel().getColumnCount() > 0) {
+            tablaInteres.getColumnModel().getColumn(3).setPreferredWidth(200);
+        }
 
         jLabel6.setText("€");
 
         jLabel7.setText("Intereses");
 
+        btnEliminarInteres.setText("Eliminar");
+        btnEliminarInteres.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnEliminarInteresActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(30, 30, 30)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jLabel2)
-                        .addGap(57, 57, 57)
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(btnEliminarInteres))
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel1Layout.createSequentialGroup()
+                        .addGap(30, 30, 30)
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(tituloField, javax.swing.GroupLayout.PREFERRED_SIZE, 170, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel3))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 46, Short.MAX_VALUE)
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.TRAILING)
                             .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(precioMaxField, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jLabel6)
-                                .addGap(127, 127, 127))
+                                .addComponent(jLabel2)
+                                .addGap(57, 57, 57)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel3)
+                                    .addComponent(tituloField, javax.swing.GroupLayout.PREFERRED_SIZE, 170, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGap(52, 52, 52)
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel4)
+                                    .addGroup(jPanel1Layout.createSequentialGroup()
+                                        .addComponent(precioMaxField, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                        .addComponent(jLabel6)
+                                        .addGap(0, 0, Short.MAX_VALUE)))
+                                .addGap(101, 101, 101)
+                                .addComponent(anadirInteres))
+                            .addComponent(jScrollPane2, javax.swing.GroupLayout.Alignment.TRAILING)
                             .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addComponent(jLabel4)
-                                .addGap(25, 25, 25))))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jLabel1)
-                        .addContainerGap())
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(anadirInteres)
-                            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 558, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 558, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addComponent(jLabel5)
-                                .addComponent(jLabel7)))
-                        .addGap(0, 0, Short.MAX_VALUE))))
+                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(Lnombre, javax.swing.GroupLayout.PREFERRED_SIZE, 709, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(jLabel5)
+                                    .addComponent(jLabel7))
+                                .addGap(0, 0, Short.MAX_VALUE)))))
+                .addGap(54, 54, 54))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGap(25, 25, 25)
-                .addComponent(jLabel1)
+                .addComponent(Lnombre)
                 .addGap(18, 18, 18)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel4)
-                    .addComponent(jLabel3))
+                    .addComponent(jLabel3)
+                    .addComponent(jLabel4))
                 .addGap(9, 9, 9)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel2)
                     .addComponent(tituloField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel2)
                     .addComponent(precioMaxField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel6)
                     .addComponent(anadirInteres))
-                .addGap(23, 23, 23)
+                .addGap(27, 27, 27)
                 .addComponent(jLabel7)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGap(12, 12, 12)
                 .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 119, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
-                .addComponent(jLabel5)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(47, Short.MAX_VALUE))
+                .addComponent(btnEliminarInteres)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 9, Short.MAX_VALUE)
+                .addComponent(jLabel5)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 101, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(27, 27, 27))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -174,7 +204,9 @@ public class GUIComprador extends javax.swing.JFrame {
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+            .addGroup(layout.createSequentialGroup()
+                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
         );
 
         pack();
@@ -191,10 +223,30 @@ public class GUIComprador extends javax.swing.JFrame {
         precioMaxField.setText("");
     }//GEN-LAST:event_anadirInteresActionPerformed
 
+    // Evento para registrar el cerrado de la ventana
+    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
+        myAgent.takeDown();
+    }//GEN-LAST:event_formWindowClosing
+
+    private void btnEliminarInteresActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEliminarInteresActionPerformed
+        int row = this.tablaInteres.getSelectedRow();
+        myAgent.eliminarInteres((String) tablaInteres.getModel().getValueAt(row, 0));
+        tablaInteres.getModel().setValueAt("Cancelado", row, 3);
+    }//GEN-LAST:event_btnEliminarInteresActionPerformed
+
+    private void tablaInteresFocusGained(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_tablaInteresFocusGained
+        this.btnEliminarInteres.setEnabled(true);
+    }//GEN-LAST:event_tablaInteresFocusGained
+
+    private void tablaInteresFocusLost(java.awt.event.FocusEvent evt) {//GEN-FIRST:event_tablaInteresFocusLost
+        this.btnEliminarInteres.setEnabled(true);
+    }//GEN-LAST:event_tablaInteresFocusLost
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JLabel Lnombre;
     private javax.swing.JButton anadirInteres;
-    private javax.swing.JLabel jLabel1;
+    private javax.swing.JButton btnEliminarInteres;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
@@ -212,10 +264,6 @@ public class GUIComprador extends javax.swing.JFrame {
 
     public void showGui(){
         this.setVisible(true);
-    }
-
-    private void cerrarVentana(java.awt.event.WindowEvent evt){
-            myAgent.takeDown();
     }
 
     public void mostrarNotificacion(String nt){
@@ -241,7 +289,9 @@ public class GUIComprador extends javax.swing.JFrame {
             if (tablaInteres.getModel().getValueAt(i, 0).equals(tituloMen)) {
                 
                 tablaInteres.getModel().setValueAt(precioMen, i, 2);
-                tablaInteres.getModel().setValueAt("Subasta en Curso", i, 3);
+                if(tablaInteres.getModel().getValueAt(i, 3).equals("Sin Subasta")){
+                    tablaInteres.getModel().setValueAt("Subasta en Curso", i, 3);
+                }
                 return;
             }
         }   
@@ -272,6 +322,30 @@ public class GUIComprador extends javax.swing.JFrame {
                 
                 tablaInteres.getModel().setValueAt(0, i, 2);
                 tablaInteres.getModel().setValueAt("Sin Subasta", i, 3);
+                return;
+            }
+        }
+    }
+
+    // Actualizo la tabla para indicar que el comprador va perdiendo
+    void tablaLoss(String tituloMen, Float precioMen) {
+        
+        for (int i = 0; i < tablaInteres.getRowCount(); i++) {
+            if (tablaInteres.getModel().getValueAt(i, 0).equals(tituloMen)) {
+
+                tablaInteres.getModel().setValueAt("Subasta en Curso: Perdiendo", i, 3);
+                return;
+            }
+        }
+        
+    }
+
+    // Actualizo la tabla para indicar que el comprador va ganando
+    void tablaWin(String tituloMen, Float precioMen) {
+        for (int i = 0; i < tablaInteres.getRowCount(); i++) {
+            if (tablaInteres.getModel().getValueAt(i, 0).equals(tituloMen)) {
+
+                tablaInteres.getModel().setValueAt("Subasta en Curso: Ganando", i, 3);
                 return;
             }
         }

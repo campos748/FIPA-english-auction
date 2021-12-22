@@ -46,6 +46,11 @@ public class GUIVendedor extends javax.swing.JFrame {
         jLabel9 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent evt) {
+                formWindowClosing(evt);
+            }
+        });
 
         titleField.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -77,7 +82,7 @@ public class GUIVendedor extends javax.swing.JFrame {
         jLabel5.setText("Subastas:");
 
         jLabel6.setFont(new java.awt.Font("Cortoba", 1, 24)); // NOI18N
-        jLabel6.setText("Vendedor");
+        jLabel6.setText("Vendedor ");
 
         tablaSubastas.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -111,6 +116,7 @@ public class GUIVendedor extends javax.swing.JFrame {
         });
         jScrollPane2.setViewportView(tablaSubastas);
 
+        notificaciones.setEditable(false);
         notificaciones.setColumns(20);
         notificaciones.setRows(5);
         jScrollPane1.setViewportView(notificaciones);
@@ -163,7 +169,7 @@ public class GUIVendedor extends javax.swing.JFrame {
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel7)
-                            .addComponent(jLabel6, javax.swing.GroupLayout.PREFERRED_SIZE, 134, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(jLabel6, javax.swing.GroupLayout.PREFERRED_SIZE, 136, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addGap(0, 0, Short.MAX_VALUE))))
         );
         jPanel1Layout.setVerticalGroup(
@@ -234,6 +240,11 @@ public class GUIVendedor extends javax.swing.JFrame {
         // TODO add your handling code here:
     }//GEN-LAST:event_priceFieldActionPerformed
 
+    // Cuando se cierra la ventana se borra el agente
+    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
+        myAgent.takeDown();
+    }//GEN-LAST:event_formWindowClosing
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton anadirSubasta;
@@ -260,17 +271,16 @@ public class GUIVendedor extends javax.swing.JFrame {
     void showGui() {
         super.setVisible(true);
     }
-    
-    // Cuando se cierra la ventana se borra el agente
-    private void cerrarVentana(java.awt.event.WindowEvent evt){
-        myAgent.takeDown();
-    }
+   
     
     public void mostrarNotificacion(String st){
         notificaciones.append(st);
     }
     
     public void anadirSubastaTabla(Subasta sb) {
+        
+        this.mostrarNotificacion(">Se ha iniciado la subasta por el libro " + sb.getTituloLibro()+"\n");
+        
         for (int i = 0; i < tablaSubastas.getRowCount(); i++) {
             if (tablaSubastas.getModel().getValueAt(i, 0) == null) {
 
@@ -296,6 +306,9 @@ public class GUIVendedor extends javax.swing.JFrame {
     
     // Función para actualizar el precio de una subasta activa
     void actualizarPrecio(Subasta sb) {
+        
+        this.mostrarNotificacion(">Se ha subido el precio del libro " + sb.getTituloLibro()+"\n");
+        
         for (int i = 0; i < tablaSubastas.getRowCount(); i++) {
             if (tablaSubastas.getModel().getValueAt(i, 0).equals(sb.getTituloLibro())) {
                 tablaSubastas.getModel().setValueAt(sb.getPrecio(), i, 2);
@@ -306,6 +319,9 @@ public class GUIVendedor extends javax.swing.JFrame {
 
     // Función para indicar que una determinada subasta a finalizado
     void terminarSubasta(Subasta sb) {
+        
+        this.mostrarNotificacion(">Se ha finalizado la subasta por el libro " + sb.getTituloLibro()+"\n");
+        
         for (int i = 0; i < tablaSubastas.getRowCount(); i++) {
             if (tablaSubastas.getModel().getValueAt(i, 0).equals(sb.getTituloLibro())) {
                 tablaSubastas.getModel().setValueAt("Finalizada", i, 3);
