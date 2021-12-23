@@ -1,5 +1,11 @@
 package Vendedor;
 
+import jade.content.Concept;
+import jade.content.lang.Codec;
+import jade.content.lang.sl.SLCodec;
+import jade.content.onto.Ontology;
+import jade.content.onto.OntologyException;
+import jade.content.onto.basic.Action;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
@@ -8,12 +14,14 @@ import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
+import jade.lang.acl.ACLCodec.CodecException;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import ontology.*;
 
 
 public class AgenteVendedor extends Agent {
@@ -23,7 +31,11 @@ public class AgenteVendedor extends Agent {
     // The GUI by means of which the user can add books in the catalogue
     private GUIVendedor myGui;
     AID[] agentesComprador;
-
+    // Ontologia
+    private Codec codec;
+    private Ontology onto;
+    
+    
     // Put agent initializations here
     @Override
     protected void setup() {
@@ -33,7 +45,13 @@ public class AgenteVendedor extends Agent {
         // Create and show the GUI 
         myGui = new GUIVendedor(this);
         myGui.showGui();
-
+        
+        
+//----------------------------- Ontologia --------------------------
+        codec = new SLCodec();
+        onto = SimpleJADEAbstractOntologyOntology.getInstance();
+        getContentManager().registerLanguage(codec);
+        getContentManager().registerOntology(onto);
     }
 
     // Put agent clean-up operations here
@@ -67,8 +85,13 @@ public class AgenteVendedor extends Agent {
         boolean primero = true;
         boolean retroceder = false;
         
+        private DefaultSubasta dSb;
+        private DefaultSubastar dSubastar;
+        
         public BidOrdersServer(Subasta sb) {
             this.sb = sb;
+            dSb = new DefaultSubasta();
+            dSubastar = new DefaultSubastar();            
         }
 
         @Override
@@ -102,7 +125,24 @@ public class AgenteVendedor extends Agent {
                         for (int i = 0; i < agentesComprador.length; ++i) {
                             cfp.addReceiver(agentesComprador[i]);
                         }
-                        cfp.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+//---------------------------------- Ontología: FillContent ----------------------------------                        
+                        cfp.setOntology(onto.getName());
+                        cfp.setLanguage(codec.getName());
+                        dSb.setTitulo(sb.getTituloLibro());
+                        dSb.setPrecio(sb.getPrecio());
+                        dSubastar.setSubasta(dSb);
+                        
+                        try {
+                            getContentManager().fillContent(cfp, new Action(getAID(), dSubastar));
+                        } catch (OntologyException e) {
+                            e.printStackTrace();
+                        } catch (Codec.CodecException ex) {
+                            Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+//------------------------------------------------------------------------------------------------------
+                        
+                        //cfp.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+                        
                         cfp.setConversationId("subasta-libro");
                         cfp.setReplyWith("cfp" + System.currentTimeMillis()); // Unique value
                         myAgent.send(cfp);
@@ -110,7 +150,14 @@ public class AgenteVendedor extends Agent {
                         mt = MessageTemplate.and(MessageTemplate.MatchConversationId("subasta-libro"),
                                 MessageTemplate.MatchInReplyTo(cfp.getReplyWith()));
                         step = 1;
-                    } 
+                    }
+                    else{
+                        try {
+                                TimeUnit.SECONDS.sleep(10);
+                            } catch (InterruptedException ex) {
+                                Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                    }
                     break;
 
                 // Recibir las respuestas de los compradores    
@@ -121,8 +168,19 @@ public class AgenteVendedor extends Agent {
                     if (reply != null) {
                         // Reply received
                         if (reply.getPerformative() == ACLMessage.PROPOSE) {
-                            // This is an auction 
-                            if (reply.getContent().equals("interesado")) {
+                            DefaultResponder dfRes = null;
+                            try {
+                                // This is an auction
+//---------------------------------- Ontologia: getContent ----------------------------------
+                                Action a = (Action) getContentManager().extractContent(reply);
+                                dfRes = (DefaultResponder) a.getAction();
+                            } catch (Codec.CodecException ex) {
+                                Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                            } catch (OntologyException ex) {
+                                Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                            }
+                            
+                            if (dfRes.getRespuesta().getInteresado()) {
                                 if (primero == true) {
                                     sb.setGanador(reply.getSender());
                                     sb.filtrarParticipantes();
@@ -136,12 +194,12 @@ public class AgenteVendedor extends Agent {
                             }
                             respuestas++;
                             
-                            
-                            try {
-                                TimeUnit.SECONDS.sleep(5);
+                             try {
+                                TimeUnit.SECONDS.sleep(2);
                             } catch (InterruptedException ex) {
                                 Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
                             }
+                                                       
                         }
                         
 
@@ -158,7 +216,23 @@ public class AgenteVendedor extends Agent {
                                 // Mensaje de ir ganando
                                 ACLMessage acept = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
                                 acept.addReceiver(sb.getGanador());
-                                acept.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+//---------------------------------- Ontología: FillContent  ----------------------------------                               
+                                acept.setOntology(onto.getName());
+                                acept.setLanguage(codec.getName());
+                                dSb.setTitulo(sb.getTituloLibro());
+                                dSb.setPrecio(sb.getPrecio());
+                                dSubastar.setSubasta(dSb);
+
+                                try {
+                                    getContentManager().fillContent(acept, new Action(getAID(), dSubastar));
+                                } catch (OntologyException e) {
+                                    e.printStackTrace();
+                                } catch (Codec.CodecException ex) {
+                                    Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                                }
+//------------------------------------------------------------------------------------------------------                            
+                                //acept.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+                                
                                 acept.setConversationId("compra-libro");
                                 acept.setReplyWith("acept" + System.currentTimeMillis()); // Unique value
                                 myAgent.send(acept);
@@ -169,11 +243,32 @@ public class AgenteVendedor extends Agent {
                                 for (int i = 0; i < sb.getParticipantes().size(); i++) {
                                     reject.addReceiver(sb.getParticipantes().get(i));
                                 }
-                                reject.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+                                
+//---------------------------------- Ontología: FillContent --------------------------------------------------------------------
+                                reject.setOntology(onto.getName());
+                                reject.setLanguage(codec.getName());
+                                dSb.setTitulo(sb.getTituloLibro());
+                                dSb.setPrecio(sb.getPrecio());
+                                dSubastar.setSubasta(dSb);
+
+                                try {
+                                    getContentManager().fillContent(reject, new Action(getAID(), dSubastar));
+                                } catch (OntologyException e) {
+                                    e.printStackTrace();
+                                } catch (Codec.CodecException ex) {
+                                    Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                                }
+//------------------------------------------------------------------------------------------------------
+                                //reject.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
                                 reject.setConversationId("compra-libro");
                                 reject.setReplyWith("reject" + System.currentTimeMillis()); // Unique value
                                 myAgent.send(reject);
-
+                                
+                                try {
+                                    TimeUnit.SECONDS.sleep(10);
+                                } catch (InterruptedException ex) {
+                                    Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                                }
                                 step = 0;
                             }
 
@@ -212,7 +307,23 @@ public class AgenteVendedor extends Agent {
                     // Mensaje de aceptación
                     ACLMessage acept = new ACLMessage(ACLMessage.REQUEST);
                     acept.addReceiver(sb.getGanador());
-                    acept.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+//---------------------------------- Ontología: FillContent ----------------------------------
+                    acept.setOntology(onto.getName());
+                    acept.setLanguage(codec.getName());
+                    dSb.setTitulo(sb.getTituloLibro());
+                    dSb.setPrecio(sb.getPrecio());
+                    dSubastar.setSubasta(dSb);
+
+                    try {
+                        getContentManager().fillContent(acept, new Action(getAID(), dSubastar));
+                    } catch (OntologyException e) {
+                        e.printStackTrace();
+                    } catch (Codec.CodecException ex) {
+                        Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    
+//------------------------------------------------------------------------------------------------------                    
+                    //acept.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
                     acept.setConversationId("compra-libro");
                     acept.setReplyWith("win" + System.currentTimeMillis()); // Unique value
                     myAgent.send(acept);
@@ -223,7 +334,23 @@ public class AgenteVendedor extends Agent {
                     for (int i = 0; i < sb.getParticipantes().size(); i++) {
                         reject.addReceiver(sb.getParticipantes().get(i));
                     }
-                    reject.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
+ //---------------------------------- Ontología: FillContent ----------------------------------
+                    reject.setOntology(onto.getName());
+                    reject.setLanguage(codec.getName());
+                    dSb.setTitulo(sb.getTituloLibro());
+                    dSb.setPrecio(sb.getPrecio());
+                    dSubastar.setSubasta(dSb);
+
+                    try {
+                        getContentManager().fillContent(reject, new Action(getAID(), dSubastar));
+                    } catch (OntologyException e) {
+                        e.printStackTrace();
+                    } catch (Codec.CodecException ex) {
+                        Logger.getLogger(AgenteVendedor.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    
+//------------------------------------------------------------------------------------------------------                    
+                    //reject.setContent("Libro: " + sb.getTituloLibro() + " Precio: " + sb.getPrecio());
                     reject.setConversationId("compra-libro");
                     reject.setReplyWith("lost" + System.currentTimeMillis()); // Unique value
                     myAgent.send(reject);
